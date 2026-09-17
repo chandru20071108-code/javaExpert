@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Student Auth</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #eef4ff, #dfeeff);
+            color: #1a1a1a;
+        }
+        .container {
+            max-width: 1100px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2.4rem;
+            color: #153d7a;
+        }
+        .panel-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 24px;
+        }
+        .panel {
+            background: #fff;
+            border-radius: 14px;
+            box-shadow: 0 10px 25px rgba(21, 61, 122, 0.12);
+            padding: 24px;
+        }
+        h2 {
+            margin-top: 0;
+            color: #153d7a;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        input {
+            padding: 12px 14px;
+            border: 1px solid #cfe0ff;
+            border-radius: 10px;
+            font-size: 1rem;
+        }
+        input:focus {
+            outline: 2px solid #99b9ff;
+            border-color: #7ea6ff;
+        }
+        button {
+            background: #153d7a;
+            color: white;
+            border: none;
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s ease;
+        }
+        button:hover {
+            background: #0f2d59;
+        }
+        .message {
+            margin-top: 16px;
+            min-height: 22px;
+            font-weight: 600;
+        }
+        .success { color: #0e8a4f; }
+        .error { color: #b42318; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Student Authentication</h1>
+        </div>
+
+        <div class="panel-grid">
+            <div class="panel">
+                <h2>Register</h2>
+                <form id="registerForm">
+                    <input type="text" id="regName" placeholder="Student name" required />
+                    <input type="text" id="regDepartment" placeholder="Department" required />
+                    <input type="number" id="regAge" placeholder="Age" required />
+                    <input type="text" id="regUsername" placeholder="Username" required />
+                    <input type="password" id="regPassword" placeholder="Password" required />
+                    <button type="submit">Register</button>
+                </form>
+                <div id="registerMessage" class="message"></div>
+            </div>
+
+            <div class="panel">
+                <h2>Login</h2>
+                <form id="loginForm">
+                    <input type="text" id="loginUsername" placeholder="Username" required />
+                    <input type="password" id="loginPassword" placeholder="Password" required />
+                    <button type="submit">Login</button>
+                </form>
+                <div id="loginMessage" class="message"></div>
+            </div>
+        </div>
+
+        <div class="panel" style="margin-top: 30px;">
+            <h2>Course Management</h2>
+
+            <form id="courseForm">
+                <input type="text" id="courseName" placeholder="Course name" required />
+                <input type="text" id="courseDepartment" placeholder="Department" required />
+                <input type="number" id="courseDuration" placeholder="Duration in months" required />
+                <input type="number" step="0.01" id="courseFees" placeholder="Fees" required />
+                <button type="submit" id="courseSubmitBtn">Add Course</button>
+                <button type="button" id="cancelEditBtn" style="display:none; background:#6b7280;">Cancel</button>
+            </form>
+            <div id="courseMessage" class="message"></div>
+
+            <div style="margin-top: 20px;">
+                <h3>Course List</h3>
+                <ul id="courseList" style="padding-left: 20px; line-height: 1.8;"></ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const setMessage = (elementId, text, type) => {
+            const element = document.getElementById(elementId);
+            element.textContent = text;
+            element.className = 'message ' + type;
+        };
+
+        let editingCourseId = null;
+
+        async function loadCourses() {
+            try {
+                const response = await fetch('/courses');
+                const courses = await response.json();
+                const courseList = document.getElementById('courseList');
+                courseList.innerHTML = '';
+
+                if (!courses.length) {
+                    courseList.innerHTML = '<li>No courses available.</li>';
+                    return;
+                }
+
+                courses.forEach(course => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <strong>${course.courseName}</strong> - ${course.department} |
+                        Duration: ${course.duration} months |
+                        Fees: $${course.fees}
+                        <button type="button" data-action="edit" data-id="${course.courseId}" style="margin-left: 10px;">Edit</button>
+                        <button type="button" data-action="delete" data-id="${course.courseId}" style="margin-left: 5px;">Delete</button>
+                    `;
+                    courseList.appendChild(li);
+                });
+            } catch (error) {
+                setMessage('courseMessage', 'Unable to load courses.', 'error');
+            }
+        }
+
+        document.getElementById('courseList').addEventListener('click', async function (event) {
+            const action = event.target.dataset.action;
+            const courseId = event.target.dataset.id;
+
+            if (!action || !courseId) return;
+
+            if (action === 'delete') {
+                try {
+                    const response = await fetch(`/courses/${courseId}`, { method: 'DELETE' });
+                    const text = await response.text();
+                    if (response.ok) {
+                        setMessage('courseMessage', text, 'success');
+                        loadCourses();
+                    } else {
+                        setMessage('courseMessage', text, 'error');
+                    }
+                } catch (error) {
+                    setMessage('courseMessage', 'Delete failed.', 'error');
+                }
+            }
+
+            if (action === 'edit') {
+                try {
+                    const response = await fetch(`/courses/${courseId}`);
+                    const course = await response.json();
+                    editingCourseId = course.courseId;
+                    document.getElementById('courseName').value = course.courseName;
+                    document.getElementById('courseDepartment').value = course.department;
+                    document.getElementById('courseDuration').value = course.duration;
+                    document.getElementById('courseFees').value = course.fees;
+                    document.getElementById('courseSubmitBtn').textContent = 'Update Course';
+                    document.getElementById('cancelEditBtn').style.display = 'inline-block';
+                    setMessage('courseMessage', 'Editing course ' + course.courseName, 'success');
+                } catch (error) {
+                    setMessage('courseMessage', 'Could not load course details.', 'error');
+                }
+            }
+        });
+
+        document.getElementById('cancelEditBtn').addEventListener('click', () => {
+            editingCourseId = null;
+            document.getElementById('courseForm').reset();
+            document.getElementById('courseSubmitBtn').textContent = 'Add Course';
+            document.getElementById('cancelEditBtn').style.display = 'none';
+            setMessage('courseMessage', 'Edit cancelled.', 'success');
+        });
+
+        document.getElementById('courseForm').addEventListener('submit', async function (event) {
+            event.preventDefault();
+
+            const payload = {
+                courseName: document.getElementById('courseName').value,
+                department: document.getElementById('courseDepartment').value,
+                duration: Number(document.getElementById('courseDuration').value),
+                fees: Number(document.getElementById('courseFees').value)
+            };
+
+            try {
+                const url = editingCourseId ? `/courses/${editingCourseId}` : '/courses';
+                const method = editingCourseId ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const text = await response.text();
+                if (response.ok) {
+                    setMessage('courseMessage', editingCourseId ? 'Course updated successfully.' : 'Course created successfully.', 'success');
+                    this.reset();
+                    editingCourseId = null;
+                    document.getElementById('courseSubmitBtn').textContent = 'Add Course';
+                    document.getElementById('cancelEditBtn').style.display = 'none';
+                    loadCourses();
+                } else {
+                    setMessage('courseMessage', text, 'error');
+                }
+            } catch (error) {
+                setMessage('courseMessage', 'Course operation failed.', 'error');
+            }
+        });
+
+        document.getElementById('registerForm').addEventListener('submit', async function (event) {
+            event.preventDefault();
+            const payload = {
+                name: document.getElementById('regName').value,
+                department: document.getElementById('regDepartment').value,
+                age: Number(document.getElementById('regAge').value),
+                username: document.getElementById('regUsername').value,
+                password: document.getElementById('regPassword').value
+            };
+
+            try {
+                const response = await fetch('/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const text = await response.text();
+                if (response.ok) {
+                    setMessage('registerMessage', text, 'success');
+                    this.reset();
+                } else {
+                    setMessage('registerMessage', text, 'error');
+                }
+            } catch (error) {
+                setMessage('registerMessage', 'Registration failed. Please try again.', 'error');
+            }
+        });
+
+        document.getElementById('loginForm').addEventListener('submit', async function (event) {
+            event.preventDefault();
+            const payload = {
+                username: document.getElementById('loginUsername').value,
+                password: document.getElementById('loginPassword').value
+            };
+
+            try {
+                const response = await fetch('/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const text = await response.text();
+                if (response.ok) {
+                    setMessage('loginMessage', text, 'success');
+                    this.reset();
+                } else {
+                    setMessage('loginMessage', text, 'error');
+                }
+            } catch (error) {
+                setMessage('loginMessage', 'Login failed. Please try again.', 'error');
+            }
+        });
+
+        loadCourses();
+    </script>
+</body>
+</html>
