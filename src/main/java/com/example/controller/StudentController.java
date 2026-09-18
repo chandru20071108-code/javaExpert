@@ -9,6 +9,12 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
+@CrossOrigin(origins = {
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174"
+})
 @RequestMapping("/students")
 public class StudentController {
 
@@ -16,6 +22,16 @@ public class StudentController {
 
     public StudentController(StudentRepository studentRepository) {
         this.studentRepository = studentRepository;
+    }
+
+    private void applyDefaults(Studententity student) {
+        if (student.getUsername() == null || student.getUsername().isBlank()) {
+            student.setUsername("student_" + System.currentTimeMillis());
+        }
+
+        if (student.getPassword() == null || student.getPassword().isBlank()) {
+            student.setPassword("default123");
+        }
     }
 
     @GetMapping
@@ -34,6 +50,7 @@ public class StudentController {
     public ResponseEntity<Studententity> addStudent(
             @RequestBody Studententity student) {
 
+        applyDefaults(student);
         Studententity savedStudent = studentRepository.save(student);
 
         return new ResponseEntity<>(
@@ -51,6 +68,7 @@ public class StudentController {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
 
+        applyDefaults(student);
         student.setId(id);
         Studententity updatedStudent = studentRepository.save(student);
 
