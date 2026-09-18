@@ -53,8 +53,7 @@ public class AuthController {
 
             entityManager.persist(student);
 
-            return ResponseEntity.status(HttpStatus.CREATED)
-                    .body("Registration Successful");
+            return ResponseEntity.ok("Registration Successful");
         }
     }
 

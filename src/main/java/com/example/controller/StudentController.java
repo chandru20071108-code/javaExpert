@@ -1,9 +1,9 @@
 package com.example.controller;
 
 import com.example.entity.Studententity;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
-import org.springframework.transaction.annotation.Transactional;
+import com.example.repository.StudentRepository;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -12,49 +12,69 @@ import java.util.List;
 @RequestMapping("/students")
 public class StudentController {
 
-    @PersistenceContext
-    private EntityManager entityManager;
+    private final StudentRepository studentRepository;
+
+    public StudentController(StudentRepository studentRepository) {
+        this.studentRepository = studentRepository;
+    }
 
     @GetMapping
     public List<Studententity> getAllStudents() {
-        return entityManager.createQuery(
-                "SELECT s FROM Studententity s",
-                Studententity.class
-        ).getResultList();
+        return studentRepository.findAll();
     }
 
     @GetMapping("/{id}")
-    public Studententity getStudentById(@PathVariable int id) {
-        return entityManager.find(Studententity.class, id);
+    public ResponseEntity<Studententity> getStudentById(@PathVariable Integer id) {
+        return studentRepository.findById(id)
+                .map(student -> new ResponseEntity<>(student, HttpStatus.OK))
+                .orElse(new ResponseEntity<>(HttpStatus.NOT_FOUND));
     }
 
-    @Transactional
     @PostMapping
-    public Studententity addStudent(@RequestBody Studententity student) {
-        entityManager.persist(student);
-        return student;
-    }
-
-    @Transactional
-    @PutMapping("/{id}")
-    public Studententity updateStudent(
-            @PathVariable int id,
+    public ResponseEntity<Studententity> addStudent(
             @RequestBody Studententity student) {
 
-        student.setId(id);
-        return entityManager.merge(student);
+        Studententity savedStudent = studentRepository.save(student);
+
+        return new ResponseEntity<>(
+                savedStudent,
+                HttpStatus.CREATED
+        );
     }
 
-    @Transactional
-    @DeleteMapping("/{id}")
-    public String deleteStudent(@PathVariable int id) {
-        Studententity student =
-                entityManager.find(Studententity.class, id);
+    @PutMapping("/{id}")
+    public ResponseEntity<Studententity> updateStudent(
+            @PathVariable Integer id,
+            @RequestBody Studententity student) {
 
-        if (student != null) {
-            entityManager.remove(student);
+        if (!studentRepository.existsById(id)) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
 
-        return "Student deleted successfully";
+        student.setId(id);
+        Studententity updatedStudent = studentRepository.save(student);
+
+        return new ResponseEntity<>(
+                updatedStudent,
+                HttpStatus.OK
+        );
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<String> deleteStudent(@PathVariable Integer id) {
+
+        if (!studentRepository.existsById(id)) {
+            return new ResponseEntity<>(
+                    "Student not found",
+                    HttpStatus.NOT_FOUND
+            );
+        }
+
+        studentRepository.deleteById(id);
+
+        return new ResponseEntity<>(
+                "Student deleted successfully",
+                HttpStatus.OK
+        );
     }
 }
